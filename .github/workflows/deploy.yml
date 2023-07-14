@@ -1,0 +1,29 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  deploy:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install cargo-bump
+        run: cargo install cargo-bump --force
+      - name: Modify version with tag
+        run: cargo bump $GITHUB_REF_NAME
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          toolchain: stable
+          override: true
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Cargo: Update the crate version to ${{ secrets.CARGO_REGISTRY_TOKEN }}"
+      - uses: katyo/publish-crates@v1
+        with:
+          args: --allow-dirty --all-features
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
