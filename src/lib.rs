@@ -135,13 +135,12 @@ where
     }
 
     pub fn check_data_ready(&mut self) -> Result<(), Error<E>> {
-        let mut retries = 10;
+        let mut retries = 20;
         while retries > 0 {
             let status = self.read_register(Register::ST1)?;
             if (status & 0x01) != 0 {
                 return Ok(()); // Data ready
             }
-            std::thread::sleep(std::time::Duration::from_millis(100));
             retries -= 1;
         }
         Err(Error::DataNotReady)
@@ -149,9 +148,8 @@ where
     // 9.4.3.2. Normal Read Sequence:
     //   1. Check Data Ready or not by any of the following method:
     //      |ST2| -> | 0 0 0 0 HOFL INV 0 0 |
-    pub fn check_overflow(&mut self) -> Result<(), Error<E>> {
-        let status = self.read_register(Register::ST2)?;
-        if (status & 0x04) != 0 {
+    pub fn check_overflow(register) -> Result<(), Error<E>> {
+        if (register & 0x04) != 0 {
             return Err(Error::SensorOverflow);
         }
         Ok(())
@@ -192,15 +190,15 @@ where
     pub fn read_raw(&mut self) -> Result<(i16, i16, i16), Error<E>> {
         self.check_data_ready()?;
         let res = self.read_unchecked();
-        self.check_overflow()?;
         res
     }
 
     pub fn read_unchecked(&mut self) -> Result<(i16, i16, i16), Error<E>> {
-        let mut buffer: [u8; 6] = [0u8; 6];
+        let mut buffer: [u8; 8] = [0u8; 6];
         self.i2c
             .write_read(self.address, &[Register::HXL.into()], &mut buffer)
             .map_err(Error::I2C)?;
+        self.check_overflow([buffer[7]]);
         let x = i16::from_le_bytes([buffer[0], buffer[1]]);
         let y = i16::from_le_bytes([buffer[2], buffer[3]]);
         let z = i16::from_le_bytes([buffer[4], buffer[5]]);
