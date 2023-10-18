@@ -213,7 +213,12 @@ mod tests {
         // Define expected I2C transactions for setting mode and reading sensor data
         let expected_trans = [
             // I2cTrans::write(0x0C, vec![0x31, 0x10]), // Set mode to continuous measurement mode 1
-            I2cTrans::write_read(0x0C, vec![0x11], vec![0x04, 0x23, 0x05, 0x24, 0x06, 0x25]), // Read sensor data
+            I2cTrans::write_read(AK09915_ADDRESS, vec![Register::ST1.into()], vec![0x01]),
+            I2cTrans::write_read(
+                AK09915_ADDRESS,
+                vec![Register::HXL.into()],
+                vec![0x04, 0x23, 0x05, 0x24, 0x06, 0x25, 0x00, 0x01],
+            ), // Read sensor data
         ];
 
         // Create a mock I2C device and queue the expected transactions
