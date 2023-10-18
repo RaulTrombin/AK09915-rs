@@ -225,7 +225,7 @@ mod tests {
         // Set the mode to continuous measurement mode 1
         // sensor.set_mode(Mode::Cont1Hz).unwrap();
 
-        let (x, y, z) = sensor.read_unchecked().expect("Error reading magnetometer");
+        let (x, y, z) = sensor.read_raw().expect("Error reading magnetometer");
 
         // Verify that the magnetometer data matches the expected values
         assert_eq!(x, 0x2304);
