@@ -148,7 +148,7 @@ where
     // 9.4.3.2. Normal Read Sequence:
     //   1. Check Data Ready or not by any of the following method:
     //      |ST2| -> | 0 0 0 0 HOFL INV 0 0 |
-    pub fn check_overflow(register) -> Result<(), Error<E>> {
+    pub fn check_overflow(register:u8) -> Result<(), Error<E>> {
         if (register & 0x04) != 0 {
             return Err(Error::SensorOverflow);
         }
@@ -189,16 +189,15 @@ where
 
     pub fn read_raw(&mut self) -> Result<(i16, i16, i16), Error<E>> {
         self.check_data_ready()?;
-        let res = self.read_unchecked();
-        res
-    }
-
-    pub fn read_unchecked(&mut self) -> Result<(i16, i16, i16), Error<E>> {
-        let mut buffer: [u8; 8] = [0u8; 6];
+        let mut buffer: [u8; 8] = [0u8; 8];
         self.i2c
             .write_read(self.address, &[Register::HXL.into()], &mut buffer)
             .map_err(Error::I2C)?;
-        self.check_overflow([buffer[7]]);
+
+        if (buffer[7] & 0x04) != 0 {
+            return Err(Error::SensorOverflow);
+        }
+
         let x = i16::from_le_bytes([buffer[0], buffer[1]]);
         let y = i16::from_le_bytes([buffer[2], buffer[3]]);
         let z = i16::from_le_bytes([buffer[4], buffer[5]]);
@@ -227,7 +226,7 @@ mod tests {
         // Set the mode to continuous measurement mode 1
         // sensor.set_mode(Mode::Cont1Hz).unwrap();
 
-        let (x, y, z) = sensor.read_unchecked().expect("Error reading magnetometer");
+        let (x, y, z) = sensor.read_raw().expect("Error reading magnetometer");
 
         // Verify that the magnetometer data matches the expected values
         assert_eq!(x, 0x2304);

@@ -16,14 +16,8 @@ fn navigator_benchmark(c: &mut Criterion) {
         c.bench_function(stringify!($bench_fn), |b| b.iter(|| sensor.$bench_fn($($arg)*)));
     }}
 
-    // // Navigator creation benchmark
-    // c.bench_function("new", |b| b.iter(|| Navigator::new()));
-
-    // Benchmark Inputs
-    // bench!(read_unchecked());
-    bench!(read());
     bench!(read_register(Register::ST1));
-    bench!(read_unchecked());
+    bench!(read());
 }
 
 criterion_group!(benches, navigator_benchmark);
