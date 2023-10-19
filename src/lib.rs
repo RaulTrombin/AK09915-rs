@@ -27,6 +27,7 @@ pub enum Register {
 
 // AK09915 Mode Settings - Corresponding to Control Register 2
 #[repr(u16)]
+#[derive(Clone, Copy)]
 pub enum Mode {
     PowerDown = 0x00,
     Single = 0x01,
@@ -52,6 +53,20 @@ impl From<Mode> for u8 {
     }
 }
 
+impl From<Mode> for std::time::Duration {
+    fn from(mode: Mode) -> Self {
+        match mode {
+            Mode::Cont10Hz => std::time::Duration::from_millis(50),
+            Mode::Cont20Hz => std::time::Duration::from_millis(25),
+            Mode::Cont50Hz => std::time::Duration::from_millis(10),
+            Mode::Cont100Hz => std::time::Duration::from_millis(5),
+            Mode::Cont200Hz => std::time::Duration::from_micros(2500),
+            Mode::Cont1Hz => std::time::Duration::from_millis(500),
+            _ => std::time::Duration::from_micros(0),
+        }
+    }
+}
+
 impl From<Register> for u8 {
     fn from(register: Register) -> Self {
         register as u8
@@ -61,6 +76,7 @@ impl From<Register> for u8 {
 pub struct Ak09915<I2C> {
     pub i2c: I2C,
     pub address: u8,
+    pub mode: Mode,
 }
 
 impl<I2C, E> Ak09915<I2C>
@@ -71,6 +87,7 @@ where
         Self {
             i2c,
             address: AK09915_ADDRESS,
+            mode: Mode::PowerDown,
         }
     }
 
@@ -91,7 +108,7 @@ where
     pub fn init(&mut self) -> Result<(), Error<E>> {
         // Soft reset device and put on continuous measurement
         self.reset()?;
-        self.set_mode(Mode::PowerDown)?;
+        self.set_mode(Mode::Cont200Hz)?;
         Ok(())
     }
 
@@ -105,6 +122,7 @@ where
         self.write_register(Register::CNTL2, Mode::PowerDown.into())?;
         std::thread::sleep(std::time::Duration::from_micros(100));
         self.write_register(Register::CNTL2, mode.into())?;
+        self.mode = mode;
         Ok(())
     }
 
@@ -135,13 +153,13 @@ where
     }
 
     pub fn check_data_ready(&mut self) -> Result<(), Error<E>> {
-        let mut retries = 10;
-        while retries > 0 {
+        let mut retries = 2;
+        while retries >= 0 {
             let status = self.read_register(Register::ST1)?;
             if (status & 0x01) != 0 {
                 return Ok(()); // Data ready
             }
-            std::thread::sleep(std::time::Duration::from_millis(100));
+            std::thread::sleep(self.mode.into());
             retries -= 1;
         }
         Err(Error::DataNotReady)
